@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Register</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #002D72;
+            --secondary: #34495e;
+            --accent: #00A3E0;
+            --light: #ecf0f1;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --success: #27ae60;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; overflow: hidden; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .sidebar { background-color: var(--primary); }
+        .nav-item { transition: all 0.2s; border-left: 4px solid transparent; }
+        .nav-item:hover, .nav-item.active { background-color: rgba(255,255,255,0.1); border-left-color: var(--accent); }
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
+        .badge-critical { background-color: #e74c3c; color: white; }
+        .badge-high { background-color: #e67e22; color: white; }
+        .badge-med { background-color: #f1c40f; color: black; }
+        .badge-low { background-color: #27ae60; color: white; }
+        .badge-none { background-color: #95a5a6; color: white; }
+
+        /* Client View / Read Only Hiding Classes */
+        body.read-only .admin-only { display: none !important; }
+
+        /* Print Styles */
+        @media print {
+            @page { size: landscape; margin: 0.5cm; }
+            body { overflow: visible !important; height: auto !important; background: white !important; }
+            .sidebar, .no-print, header, #addRiskForm, .modal, #clientContextDisplay, #dashboard-content, #presentationControls, #view-archives, #view-systemHealth, #view-clientManager, #view-dashboard { display: none !important; }
+            
+            #mainViewContainer { padding: 0 !important; overflow: visible !important; }
+            #view-riskRegister { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            #riskRegisterPrintHeader { display: block !important; margin-bottom: 20px; padding: 10px; border-bottom: 2px solid #002D72; }
+            
+            #riskTableContainer, .overflow-x-auto { max-height: none !important; overflow: visible !important; box-shadow: none !important; }
+            
+            table { width: 100% !important; font-size: 8pt !important; border-collapse: collapse !important; }
+            th, td { border: 1px solid #ddd !important; padding: 4px !important; color: black !important; }
+            th { background-color: #f0f0f0 !important; font-weight: bold !important; -webkit-print-color-adjust: exact; }
+            
+            /* Hide Action column in print */
+            th:last-child, td:last-child { display: none !important; }
+        }
+        
+        #riskRegisterPrintHeader { display: none; }
+
+        /* Presentation Mode Styles */
+        body.presentation-mode .sidebar, 
+        body.presentation-mode header, 
+        body.presentation-mode #addRiskForm,
+        body.presentation-mode #clientContextDisplay,
+        body.presentation-mode #view-archives,
+        body.presentation-mode #view-systemHealth,
+        body.presentation-mode #view-clientManager,
+        body.presentation-mode #view-dashboard { display: none !important; }
+        
+        body.presentation-mode #mainViewContainer { padding: 0; }
+        body.presentation-mode #view-riskRegister { height: 100vh; width: 100vw; max-width: none; padding: 20px; background: white; }
+        body.presentation-mode #riskTableContainer { height: calc(100vh - 80px); max-height: none; }
+        body.presentation-mode .overflow-x-auto { max-height: calc(100vh - 100px); }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <div class="sidebar w-64 text-white flex flex-col flex-shrink-0 z-20 shadow-xl no-print" id="appSidebar">
+        <div class="p-6 border-b border-blue-900 flex flex-col items-center gap-3">
+            <div class="bg-white p-2 rounded w-full flex justify-center mb-2 shadow-sm">
+                 <svg viewBox="0 0 140 40" class="h-8" xmlns="http://www.w3.org/2000/svg">
+                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-weight="900" font-size="30" fill="#002D72" letter-spacing="-1">KUBRA</text>
+                 </svg>
+            </div>
+            <div class="text-xs uppercase tracking-widest opacity-75">Risk Register</div>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-4">
+            <div class="px-4 mb-2 text-xs font-semibold text-blue-300 uppercase tracking-wider">Main</div>
+            <a class="nav-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="app.router.navigate('dashboard')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Dashboard
+            </a>
+            <a class="nav-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="app.router.navigate('riskRegister')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Risk Register
+            </a>
+
+            <!-- Admin Only Sections -->
+            <div id="adminNavSections" class="admin-only">
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-blue-300 uppercase tracking-wider">Management</div>
+                <a class="nav-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="app.router.navigate('clientManager')">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clients
+                </a>
+                <a class="nav-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="app.router.navigate('archives')">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                    Archives
+                </a>
+
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-blue-300 uppercase tracking-wider">Admin</div>
+                <a class="nav-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="app.router.navigate('systemHealth')">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    System Health (Tests)
+                </a>
+            </div>
+        </nav>
+        
+        <div class="p-4 bg-blue-900 bg-opacity-50 text-xs text-center text-blue-200">
+            v3.0.0 Cloud Ready
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 relative">
+        
+        <!-- Read Only Banner -->
+        <div id="readOnlyBanner" class="hidden bg-yellow-500 text-white text-center text-sm font-bold py-1 no-print shadow-md">
+            ⚠️ VIEWING SHARED RISK REGISTER (READ-ONLY)
+        </div>
+
+        <!-- Top Bar -->
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10 h-16 no-print">
+            <h2 id="pageTitle" class="text-2xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4">Dashboard</h2>
+            
+            <div id="clientContextDisplay" class="flex items-center gap-3 bg-blue-50 px-4 py-2 rounded-full border border-blue-100 hidden">
+                <span class="text-xs font-bold text-blue-800 uppercase tracking-wider">Current Client:</span>
+                <span id="activeClientName" class="font-bold text-gray-800">No Client Selected</span>
+                <button id="changeClientBtn" onclick="app.router.navigate('clientManager')" class="text-xs text-blue-600 hover:text-blue-800 underline admin-only">Change</button>
+            </div>
+        </header>
+
+        <!-- Views Container -->
+        <div id="mainViewContainer" class="flex-1 overflow-y-auto p-8 relative">
+            
+            <!-- VIEW: Dashboard -->
+            <div id="view-dashboard" class="view-section w-full max-w-7xl mx-auto space-y-8">
+                <div id="dashboard-empty-state" class="hidden text-center py-20">
+                    <div class="text-6xl mb-4">📂</div>
+                    <h3 class="text-xl font-bold text-gray-700">No Client Selected</h3>
+                    <p class="text-gray-500 mb-6">Please select or create a client to view their risk profile.</p>
+                    <button onclick="app.router.navigate('clientManager')" class="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700">Go to Client Manager</button>
+                </div>
+
+                <div id="dashboard-content">
+                    <!-- Dashboard Toolbar -->
+                    <div class="flex justify-between items-center mb-4 no-print">
+                        <div class="text-sm text-gray-500">Overview of risk posture and metrics.</div>
+                        <div class="flex gap-2">
+                             <button id="shareBtn" onclick="app.controller.generateShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded text-sm flex items-center gap-2 shadow transition admin-only">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                                Share
+                            </button>
+                            <button onclick="showLegend()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded text-sm flex items-center gap-2 transition shadow border border-gray-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Legends
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500 text-center relative group" title="Total number of risks identified in the registry, including all statuses.">
+                            <div class="text-gray-500 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-1">
+                                Total Risks <span class="cursor-help text-gray-400">&#9432;</span>
+                            </div>
+                            <div class="mt-2 text-3xl font-extrabold text-blue-600" id="dashTotal">0</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-red-500 text-center relative group" title="Number of risks with an Inherent Risk Score of 15 or higher (High Priority).">
+                            <div class="text-gray-500 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-1">
+                                Critical Risks <span class="cursor-help text-gray-400">&#9432;</span>
+                            </div>
+                            <div class="mt-2 text-3xl font-extrabold text-red-500" id="dashCritical">0</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500 text-center relative group" title="Sum of Estimated Monetary Value (Cost x Probability) for all active risks.">
+                            <div class="text-gray-500 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-1">
+                                Exposure ($) <span class="cursor-help text-gray-400">&#9432;</span>
+                            </div>
+                            <div class="mt-2 text-3xl font-extrabold text-green-600" id="dashExposure">$0</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-yellow-500 text-center relative group" title="The average risk level remaining after mitigation strategies are applied. Lower scores are better.">
+                            <div class="text-gray-500 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-1">
+                                Avg Residual Score <span class="cursor-help text-gray-400">&#9432;</span>
+                            </div>
+                            <div class="mt-2 text-3xl font-extrabold text-yellow-600" id="dashAvgScore">0</div>
+                            <div id="dashAvgScoreText" class="text-xs font-bold mt-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Heatmap -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+                        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                                Inherent Risk Heatmap
+                                <span class="text-gray-400 text-xs font-normal" title="Visualizes risks by Probability (Y-axis) vs Impact (X-axis). Numbers indicate count of risks in each cell.">&#9432;</span>
+                            </h3>
+                            <div id="heatmapGrid" class="grid grid-cols-5 gap-1 h-64 w-full"></div>
+                            <div class="flex justify-between text-xs text-gray-400 mt-2 font-bold uppercase">
+                                <span>Impact Low</span>
+                                <span>Impact High</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm" title="Distribution of risks by their current status.">
+                            <h3 class="text-lg font-bold text-gray-700 mb-4">Risk By Status</h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: Client Manager -->
+            <div id="view-clientManager" class="view-section hidden w-full max-w-7xl mx-auto admin-only">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-700">Client Portfolio</h3>
+                    <button onclick="app.ui.openClientModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow flex items-center gap-2">
+                        <span>+</span> New Client
+                    </button>
+                </div>
+                <div id="clientList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Client Cards Injected Here -->
+                </div>
+            </div>
+
+            <!-- VIEW: Risk Register -->
+            <div id="view-riskRegister" class="view-section hidden w-full max-w-full mx-auto px-4">
+                
+                <!-- Print Header (Hidden by default, shown in print) -->
+                <div id="riskRegisterPrintHeader">
+                    <div class="flex items-center gap-4 mb-4">
+                        <h1 class="text-2xl font-bold text-blue-900">KUBRA Risk Register</h1>
+                    </div>
+                    <div class="grid grid-cols-2 text-sm">
+                        <p><strong>Client Project:</strong> <span id="printClientName"></span></p>
+                        <p class="text-right"><strong>Report Date:</strong> <span id="printDate"></span></p>
+                    </div>
+                </div>
+
+                <!-- Add New Risk Form -->
+                <div id="addRiskForm" class="bg-white rounded-lg shadow-md p-6 mb-8 border-t-4 border-blue-900 no-print admin-only">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Add New Risk Entry</h3>
+                    <form onsubmit="app.controller.handleAddRisk(event)">
+                        <!-- Row 1: Desc, Category, Phase -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Risk Description</label>
+                                <input type="text" name="desc" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" required placeholder="Describe the risk event...">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
+                                <select name="category" class="w-full p-2 border rounded bg-white">
+                                    <option>Technical</option><option>Security</option><option>Financial</option><option>Operational</option><option>Legal</option><option>Resources</option><option>Schedule</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Project Phase (SDLC)</label>
+                                <select name="projectPhase" class="w-full p-2 border rounded bg-white">
+                                    <option>Discovery</option>
+                                    <option>Planning</option>
+                                    <option>Design</option>
+                                    <option>Development</option>
+                                    <option>Testing (SIT/UAT)</option>
+                                    <option>Deployment</option>
+                                    <option>Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Row 2: Dates -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Date Identified</label>
+                                <input type="date" name="dateIdentified" class="w-full p-2 border rounded">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Due Date</label>
+                                <input type="date" name="targetDate" class="w-full p-2 border rounded">
+                            </div>
+                        </div>
+
+                        <!-- Scoring Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 bg-gray-50 p-4 rounded border border-gray-100">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Prob (1-5)</label>
+                                <select id="formProb" name="prob" class="w-full p-2 border rounded" onchange="app.ui.updateFormCalc()">
+                                    <option value="1">1 - Rare</option><option value="2">2 - Unlikely</option><option value="3">3 - Possible</option><option value="4">4 - Likely</option><option value="5">5 - Almost Certain</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Impact (1-5)</label>
+                                <select id="formImpact" name="impact" class="w-full p-2 border rounded" onchange="app.ui.updateFormCalc()">
+                                    <option value="1">1 - Low</option><option value="2">2 - Minor</option><option value="3">3 - Moderate</option><option value="4">4 - Major</option><option value="5">5 - Severe</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Cost Impact ($)</label>
+                                <input type="text" id="costImpact" name="cost" class="w-full p-2 border rounded" placeholder="0.00" onblur="formatCurrency(this)" onfocus="cleanCurrency(this)" oninput="app.ui.updateFormCalc()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Duration (Days)</label>
+                                <input type="text" name="duration" class="w-full p-2 border rounded" placeholder="0" onblur="formatDays(this)" onfocus="cleanDays(this)">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Work (Hrs)</label>
+                                <input type="text" name="work" class="w-full p-2 border rounded" placeholder="0" onblur="formatHours(this)" onfocus="cleanHours(this)">
+                            </div>
+                            
+                            <!-- Real-time Calc Display -->
+                            <div class="col-span-5 grid grid-cols-2 gap-4 mt-2 border-t pt-2">
+                                <div class="text-xs text-gray-500">Inherent Risk Score: <span id="displayInherentScore" class="font-bold text-lg text-blue-800">1</span></div>
+                                <div class="text-xs text-gray-500">Projected EMV: <span id="displayEMV" class="font-bold text-lg text-green-700">$0.00</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Residual Risk (Hidden Inputs, defaulted to 0) -->
+                        <div class="hidden">
+                            <input type="hidden" name="resProb" value="0">
+                            <input type="hidden" name="resImpact" value="0">
+                        </div>
+
+                        <!-- Response Planning -->
+                        <div class="bg-blue-50 p-4 rounded border border-blue-100 mb-4">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-3 border-b border-blue-200 pb-1">Response Planning</label>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Strategy Type</label>
+                                    <select name="strategyType" class="w-full p-2 border rounded bg-white">
+                                        <option value="Mitigate">Mitigate</option>
+                                        <option value="Avoid">Avoid</option>
+                                        <option value="Transfer">Transfer</option>
+                                        <option value="Accept">Accept</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Risk Owner</label>
+                                    <select name="owner" class="w-full p-2 border rounded bg-white">
+                                        <option value="Implementation Manager">Implementation Manager</option>
+                                        <option value="Project Manager">Project Manager</option>
+                                        <option value="Tech Lead">Tech Lead</option>
+                                        <option value="Security Officer">Security Officer</option>
+                                        <option value="QA Lead">QA Lead</option>
+                                        <option value="Client Lead">Client Lead</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Status</label>
+                                    <select name="status" class="w-full p-2 border rounded bg-white">
+                                        <option value="Open">Open</option>
+                                        <option value="Monitoring">Monitoring</option>
+                                        <option value="Mitigated">Mitigated</option>
+                                        <option value="Closed">Closed</option>
+                                        <option value="Occurred">Occurred</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Root Cause</label>
+                                    <textarea name="rootCause" class="w-full p-2 border rounded" rows="2" placeholder="Underlying cause..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Mitigation Plan</label>
+                                    <textarea name="mitigationPlan" class="w-full p-2 border rounded" rows="2" placeholder="Action plan..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2">
+                            <button type="reset" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Reset</button>
+                            <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow">Add Risk</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="flex items-center justify-between mb-4 border-b pb-2 no-print">
+                    <h3 class="text-xl font-bold text-gray-700">Risk Register</h3>
+                    <div id="presentationControls" class="flex items-center gap-4">
+                        <button onclick="app.controller.togglePresentationMode()" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 font-semibold py-1 px-3 rounded border border-purple-300 transition flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                            Presentation Mode
+                        </button>
+                        <button onclick="app.controller.printRegister()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold py-1 px-3 rounded border border-blue-300 transition flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            Print Register
+                        </button>
+                        <button id="clearAllBtn" onclick="confirmClearAll()" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-1 px-3 rounded border border-red-300 transition admin-only">
+                            Clear All Entries
+                        </button>
+                        <div class="text-sm text-gray-500">
+                            Showing <span id="riskCount">0</span> records
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Updated Table Container for Frozen Headers -->
+                <div id="riskTableContainer" class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="overflow-x-auto max-h-[600px] print:max-h-none print:overflow-visible">
+                        <table class="min-w-full leading-normal">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal sticky top-0 z-10 shadow-sm print:static print:shadow-none">
+                                    <th class="py-3 px-6 text-left">ID</th>
+                                    <th class="py-3 px-6 text-left">Client</th>
+                                    <th class="py-3 px-6 text-left w-1/4">Risk Description</th>
+                                    <!-- Added Due Date Column -->
+                                    <th class="py-3 px-6 text-center whitespace-nowrap">Due Date</th>
+                                    <th class="py-3 px-6 text-center" title="Score = Probability x Impact">Risk Score</th>
+                                    <th class="py-3 px-6 text-center">Residual Score</th>
+                                    <th class="py-3 px-6 text-center">Strategy</th>
+                                    <th class="py-3 px-6 text-right">Cost ($)</th>
+                                    <th class="py-3 px-6 text-right text-blue-600">EMV ($)</th>
+                                    <!-- Added Owner Column Header -->
+                                    <th class="py-3 px-6 text-left">Owner</th>
+                                    <th class="py-3 px-6 text-center">Status</th>
+                                    <th class="py-3 px-6 text-center no-print">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="riskTableBody" class="text-gray-600 text-sm font-light">
+                                <!-- Data Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: Archives -->
+            <div id="view-archives" class="view-section hidden w-full max-w-7xl mx-auto admin-only">
+                <h3 class="text-xl font-bold text-gray-700 mb-6 border-b pb-2">Archived Clients</h3>
+                <div id="archiveList" class="space-y-4">
+                    <!-- Archives injected here -->
+                </div>
+            </div>
+
+            <!-- VIEW: System Health -->
+            <div id="view-systemHealth" class="view-section hidden w-full max-w-4xl mx-auto admin-only">
+                
+                <!-- GITHUB SETTINGS -->
+                <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg shadow mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-blue-900 flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                            GitHub Configuration (Cloud Sync)
+                        </h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">
+                        To enable unlimited data sharing, generate a Personal Access Token (PAT) on GitHub with <code>gist</code> scope and paste it here.
+                        This allows the app to save your Risk Register to a secure, private Gist.
+                    </p>
+                    <div class="flex gap-2">
+                        <input type="password" id="githubToken" class="w-full border p-2 rounded" placeholder="Paste GitHub Token (ghp_...)" onchange="app.service.saveToken(this.value)">
+                        <button onclick="alert('Token Saved Locally')" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Save Token</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">Local Data Management</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="border p-4 rounded bg-gray-50">
+                            <h4 class="font-bold text-gray-700 mb-2">Backup Data</h4>
+                            <p class="text-xs text-gray-500 mb-4">Download a JSON file of all active and archived clients.</p>
+                            <button onclick="app.controller.exportData()" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 w-full">Export Database</button>
+                        </div>
+                        <div class="border p-4 rounded bg-gray-50">
+                            <h4 class="font-bold text-gray-700 mb-2">Restore Data</h4>
+                            <p class="text-xs text-gray-500 mb-4">Upload a previously exported JSON file.</p>
+                            <input type="file" id="importFile" class="hidden" onchange="app.controller.importData(this)">
+                            <button onclick="document.getElementById('importFile').click()" class="bg-yellow-600 text-white px-4 py-2 rounded text-sm hover:bg-yellow-700 w-full">Import Database</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">System Diagnostics & Tests</h3>
+                        <button onclick="app.tests.runAll()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded font-bold">Run Diagnostics</button>
+                    </div>
+                    <div id="testResults" class="bg-gray-900 text-green-400 font-mono p-4 rounded h-64 overflow-y-auto text-sm">
+                        Waiting to run tests...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL: Share Link -->
+    <div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Share Risk Register</h3>
+            <p class="text-sm text-gray-600 mb-4">Copy the link below to share a <strong>read-only</strong> view of the Risk Register.</p>
+            <div id="shareLoading" class="hidden text-center py-4">
+                <span class="text-blue-600 font-bold animate-pulse">Uploading to GitHub Cloud...</span>
+            </div>
+            <div id="shareResult" class="">
+                <div class="flex items-center gap-2 mb-4">
+                    <input type="text" id="shareLinkInput" readonly class="w-full border p-2 rounded bg-gray-50 text-sm">
+                    <button onclick="app.controller.copyShareLink()" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Copy</button>
+                </div>
+                <p class="text-xs text-green-600 italic mb-4 hidden" id="gistSuccessMsg">Hosted securely on GitHub Gist.</p>
+                <p class="text-xs text-red-500 italic mb-4" id="urlLengthWarning">Warning: Data not on cloud. Link may be truncated.</p>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="document.getElementById('shareModal').classList.add('hidden')" class="px-4 py-2 text-gray-600">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Risk Detail / Edit -->
+    <div id="riskDetailModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex justify-end no-print">
+        <div class="bg-white w-full max-w-2xl h-full shadow-2xl p-0 flex flex-col transform transition-transform duration-300 translate-x-full" id="riskDetailPanel">
+            <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-bold text-gray-800">Risk Details & Editing</h3>
+                    <div class="flex gap-2">
+                         <button onclick="app.controller.navigateModal(-1)" class="p-1 rounded hover:bg-gray-200 text-gray-600" title="Previous Risk">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                         </button>
+                         <button onclick="app.controller.navigateModal(1)" class="p-1 rounded hover:bg-gray-200 text-gray-600" title="Next Risk">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                         </button>
+                    </div>
+                </div>
+                <button onclick="app.ui.closeRiskModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6" id="riskDetailContent">
+                <!-- Content injected dynamically -->
+            </div>
+
+            <div class="p-4 border-t bg-gray-50 flex justify-between items-center" id="riskDetailFooter">
+                <span class="text-xs text-gray-400" id="riskDetailIdDisplay"></span>
+                <button onclick="app.controller.saveRiskEdit()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold shadow">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Client Create -->
+    <div id="clientModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center no-print">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 class="text-xl font-bold mb-4">New Client</h3>
+            <input type="text" id="newClientName" class="w-full border p-2 rounded mb-4" placeholder="Client Name">
+            <input type="text" id="newClientIndustry" class="w-full border p-2 rounded mb-4" placeholder="Industry (Optional)">
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('clientModal').classList.add('hidden')" class="px-4 py-2 text-gray-600">Cancel</button>
+                <button onclick="app.controller.createClient()" class="px-4 py-2 bg-blue-600 text-white rounded">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend Modal -->
+    <div id="legendModal" class="modal-overlay hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm no-print">
+        <div class="modal-box bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl m-4 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeLegend()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Risk Analysis Legends
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Section 1: Risk Classification -->
+                <div>
+                    <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded">1</span>
+                        Score Classification
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-2">Based on (Probability x Impact) Score.</p>
+                    <div class="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Range</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Level</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">1 – 4</td>
+                                    <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800">Low</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">5 – 9</td>
+                                    <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">Medium</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">10 – 14</td>
+                                    <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800">High</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">15 – 25</td>
+                                    <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800">Critical</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section 2: EMV Calculation -->
+                <div>
+                    <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded">2</span>
+                        EMV Calculation
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-2">
+                        Formula: <strong>Cost ($) × Probability Factor (%)</strong>
+                    </p>
+                    <div class="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Prob. Score</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Factor (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">1 (Rare)</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-blue-600">10%</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">2 (Unlikely)</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-blue-600">30%</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">3 (Possible)</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-blue-600">50%</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">4 (Likely)</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-blue-600">70%</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">5 (Almost Certain)</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-blue-600">90%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section 3: Inherent Risk Score -->
+                <div class="md:col-span-2">
+                    <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded">3</span>
+                        Inherent Risk Score
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-2">
+                        Formula: <strong>Score = Probability (1-5) × Impact (1-5)</strong>
+                    </p>
+                    <div class="bg-gray-50 p-3 rounded border border-gray-200 text-sm text-gray-700">
+                        <p class="mb-2"><strong>Example Score of 1:</strong> Represents the lowest possible risk level.</p>
+                        <ul class="list-disc list-inside space-y-1 pl-2 text-xs">
+                            <li><strong>Probability:</strong> 1 (Rare)</li>
+                            <li><strong>Impact:</strong> 1 (Low)</li>
+                            <li><strong>Calculation:</strong> 1 × 1 = <strong>1</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end pt-4 border-t border-gray-100">
+                <button onclick="closeLegend()" class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition shadow">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        /**
+         * Enterprise Risk Management Application v3.0 (GitHub Gist Sharing)
+         */
+
+        const Utils = {
+            id: () => '_' + Math.random().toString(36).substr(2, 9),
+            currency: (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n),
+            date: () => new Date().toISOString().split('T')[0],
+            sanitize: (str) => {
+                if (!str) return '';
+                const temp = document.createElement('div');
+                temp.textContent = str;
+                return temp.innerHTML;
+            }
+        };
+
+        // Global functions for legend modal
+        function showLegend() {
+            document.getElementById('legendModal').classList.remove('hidden');
+        }
+
+        function closeLegend() {
+            document.getElementById('legendModal').classList.add('hidden');
+        }
+
+        // Helper Functions for Formatting
+        function formatCurrency(input) {
+            if (!input.value) return;
+            const val = parseFloat(input.value.replace(/[^0-9.]/g, ''));
+            if (!isNaN(val)) {
+                input.value = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+            }
+        }
+
+        function cleanCurrency(input) {
+            if (!input.value) return;
+            input.value = input.value.replace(/[^0-9.]/g, '');
+        }
+
+        function formatHours(input) {
+            if (!input.value) return;
+            const val = parseInt(input.value.replace(/[^0-9]/g, ''));
+            if (!isNaN(val)) {
+                input.value = val + " hours";
+            }
+        }
+
+        function cleanHours(input) {
+            if (!input.value) return;
+            input.value = input.value.replace(/[^0-9]/g, '');
+        }
+
+        function formatDays(input) {
+            if (!input.value) return;
+            const val = parseInt(input.value.replace(/[^0-9]/g, ''));
+            if (!isNaN(val)) {
+                input.value = val + " days";
+            }
+        }
+
+        function cleanDays(input) {
+            if (!input.value) return;
+            input.value = input.value.replace(/[^0-9]/g, '');
+        }
+        
+        function confirmClearAll() {
+            if (app.state.readOnly) return;
+            app.controller.clearAllRisks();
+        }
+
+        const probMap = {1: 0.1, 2: 0.3, 3: 0.5, 4: 0.7, 5: 0.9};
+
+        // --- 1. DATA MODELS & SERVICE ---
+        class DataService {
+            constructor() {
+                this.STORAGE_KEY = 'erm_db_v2_4'; 
+                this.GH_TOKEN_KEY = 'erm_gh_token';
+                this.db = this.load();
+            }
+
+            load() {
+                const data = localStorage.getItem(this.STORAGE_KEY);
+                return data ? JSON.parse(data) : { clients: [], currentClientId: null };
+            }
+
+            save() {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.db));
+            }
+            
+            saveToken(token) {
+                localStorage.setItem(this.GH_TOKEN_KEY, token);
+            }
+            
+            getToken() {
+                return localStorage.getItem(this.GH_TOKEN_KEY);
+            }
+
+            // GIST API METHODS
+            async publishToGist(data) {
+                const token = this.getToken();
+                if(!token) throw new Error("No GitHub Token found.");
+
+                const payload = {
+                    "description": "Risk Register Data Export " + new Date().toISOString(),
+                    "public": false,
+                    "files": {
+                        "risk_data.json": {
+                            "content": JSON.stringify(data)
+                        }
+                    }
+                };
+
+                const response = await fetch("https://api.github.com/gists", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `token ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if(!response.ok) throw new Error("GitHub API Error: " + response.statusText);
+                return await response.json(); // Returns Gist Object
+            }
+            
+            async fetchFromGist(gistId) {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`);
+                if(!response.ok) throw new Error("Gist not found");
+                const json = await response.json();
+                const file = json.files["risk_data.json"];
+                return file ? JSON.parse(file.content) : null;
+            }
+
+            // Local Backup/Restore
+            export() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.db));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "risk_db_backup_" + Utils.date() + ".json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }
+            
+            import(jsonData) {
+                try {
+                    const parsed = JSON.parse(jsonData);
+                    if(parsed.clients || parsed.name) { // Basic validation
+                        this.db = parsed.clients ? parsed : { clients: [parsed], currentClientId: parsed.id }; // Handle single client or full db
+                        this.save();
+                        return true;
+                    }
+                    return false;
+                } catch(e) { return false; }
+            }
+
+            getClients(includeArchived = false) {
+                return this.db.clients.filter(c => includeArchived ? true : !c.archived);
+            }
+
+            getArchivedClients() {
+                return this.db.clients.filter(c => c.archived);
+            }
+
+            createClient(name, industry) {
+                const newClient = {
+                    id: Utils.id(),
+                    name: Utils.sanitize(name), 
+                    industry: Utils.sanitize(industry),
+                    archived: false,
+                    risks: []
+                };
+                this.db.clients.push(newClient);
+                this.save();
+                return newClient;
+            }
+
+            archiveClient(id, restore = false) {
+                const client = this.db.clients.find(c => c.id === id);
+                if (client) {
+                    client.archived = !restore;
+                    this.save();
+                }
+            }
+
+            deleteClient(id) {
+                this.db.clients = this.db.clients.filter(c => c.id !== id);
+                this.save();
+            }
+
+            setCurrentClient(id) {
+                this.db.currentClientId = id;
+                this.save();
+            }
+
+            getCurrentClient() {
+                return this.db.clients.find(c => c.id === this.db.currentClientId);
+            }
+
+            addRisk(clientId, riskData) {
+                const client = this.db.clients.find(c => c.id === clientId);
+                if (!client) throw new Error("Client not found");
+                
+                const risk = {
+                    id: Utils.id(),
+                    ...riskData,
+                    desc: Utils.sanitize(riskData.desc),
+                    mitigationPlan: Utils.sanitize(riskData.mitigationPlan),
+                    rootCause: Utils.sanitize(riskData.rootCause),
+                    comments: [],
+                    created: Utils.date()
+                };
+                client.risks.push(risk);
+                this.save();
+                return risk;
+            }
+
+            updateRisk(clientId, riskId, updates) {
+                const client = this.db.clients.find(c => c.id === clientId);
+                if (!client) return;
+                const riskIndex = client.risks.findIndex(r => r.id === riskId);
+                if (riskIndex > -1) {
+                    if(updates.desc) updates.desc = Utils.sanitize(updates.desc);
+                    if(updates.mitigationPlan) updates.mitigationPlan = Utils.sanitize(updates.mitigationPlan);
+                    if(updates.rootCause) updates.rootCause = Utils.sanitize(updates.rootCause);
+                    
+                    client.risks[riskIndex] = { ...client.risks[riskIndex], ...updates };
+                    this.save();
+                }
+            }
+            
+            clearRisks(clientId) {
+                 const client = this.db.clients.find(c => c.id === clientId);
+                 if (client) {
+                     client.risks = [];
+                     this.save();
+                 }
+            }
+
+            deleteRisk(clientId, riskId) {
+                const client = this.db.clients.find(c => c.id === clientId);
+                if (client) {
+                    client.risks = client.risks.filter(r => r.id !== riskId);
+                    this.save();
+                }
+            }
+        }
+
+        // --- 2. CONTROLLER ---
+        class Controller {
+            constructor(service, ui) {
+                this.service = service;
+                this.ui = ui;
+                this.currentRiskIndex = -1; 
+            }
+
+            async init() {
+                // Check for Shared Data via GIST
+                const urlParams = new URLSearchParams(window.location.search);
+                const gistId = urlParams.get('gist');
+                // Legacy support (small data)
+                const shareData = urlParams.get('data'); 
+                const viewMode = urlParams.get('view') || 'riskRegister'; // Default to Register
+
+                if (gistId || shareData) {
+                    try {
+                        let decodedData;
+                        if(gistId) {
+                             // Fetch from Cloud
+                             decodedData = await this.service.fetchFromGist(gistId);
+                        } else {
+                             // Decode from URL
+                             decodedData = JSON.parse(atob(shareData));
+                        }
+
+                        app.state.readOnly = true;
+                        app.state.sharedClient = decodedData;
+                        this.ui.enableReadOnlyMode();
+                        this.ui.updateContext(decodedData);
+                        this.ui.renderRiskTable(decodedData.risks);
+                        this.ui.renderDashboard(decodedData);
+                        
+                        // Force navigation based on query or default
+                        app.router.navigate(viewMode); 
+                        
+                        return; // Stop normal init
+                    } catch (e) {
+                        console.error("Failed to load shared data", e);
+                        alert("Invalid share link or Gist error.");
+                    }
+                }
+
+                this.refreshClientList();
+                const current = this.service.getCurrentClient();
+                if (current && !current.archived) {
+                    this.selectClient(current.id);
+                } else {
+                    app.router.navigate('clientManager');
+                }
+                
+                // Pre-fill token if exists
+                if(this.service.getToken()) {
+                    document.getElementById('githubToken').value = this.service.getToken();
+                }
+            }
+
+            async generateShareLink() {
+                const client = this.service.getCurrentClient();
+                if (!client) return alert("Select a client first.");
+
+                const modal = document.getElementById('shareModal');
+                const loading = document.getElementById('shareLoading');
+                const result = document.getElementById('shareResult');
+                const successMsg = document.getElementById('gistSuccessMsg');
+                const warnMsg = document.getElementById('urlLengthWarning');
+                const input = document.getElementById('shareLinkInput');
+
+                modal.classList.remove('hidden');
+                loading.classList.remove('hidden');
+                result.classList.add('hidden');
+
+                let url = "";
+                const token = this.service.getToken();
+
+                if (token) {
+                    // Method A: Gist (Unlimited)
+                    try {
+                        const gist = await this.service.publishToGist(client);
+                        url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?gist=${gist.id}&view=riskRegister`;
+                        successMsg.classList.remove('hidden');
+                        warnMsg.classList.add('hidden');
+                    } catch(e) {
+                        alert("Gist Upload Failed: " + e.message + ". Falling back to URL encoding.");
+                        // Fallback
+                        const json = JSON.stringify(client);
+                        const encoded = btoa(json);
+                        url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${encoded}&view=riskRegister`;
+                        successMsg.classList.add('hidden');
+                        warnMsg.classList.remove('hidden');
+                    }
+                } else {
+                    // Method B: URL Param (Legacy)
+                    const json = JSON.stringify(client);
+                    const encoded = btoa(json);
+                    url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${encoded}&view=riskRegister`;
+                    successMsg.classList.add('hidden');
+                    warnMsg.classList.remove('hidden');
+                }
+
+                loading.classList.add('hidden');
+                result.classList.remove('hidden');
+                input.value = url;
+            }
+
+            copyShareLink() {
+                const copyText = document.getElementById("shareLinkInput");
+                copyText.select();
+                copyText.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(copyText.value);
+                alert("Link copied to clipboard!");
+            }
+
+            printRegister() {
+                const client = app.state.readOnly ? app.state.sharedClient : this.service.getCurrentClient();
+                if(!client) return;
+
+                document.getElementById('printClientName').innerText = client.name;
+                document.getElementById('printDate').innerText = new Date().toLocaleDateString();
+                
+                window.print();
+            }
+
+            togglePresentationMode() {
+                document.body.classList.toggle('presentation-mode');
+            }
+
+            createClient() {
+                const name = document.getElementById('newClientName').value;
+                const ind = document.getElementById('newClientIndustry').value;
+                if (!name) return alert("Name required");
+                
+                const client = this.service.createClient(name, ind);
+                document.getElementById('newClientName').value = '';
+                document.getElementById('clientModal').classList.add('hidden');
+                this.refreshClientList();
+                this.selectClient(client.id);
+            }
+
+            selectClient(id, navigate = true) { 
+                this.service.setCurrentClient(id);
+                const client = this.service.getCurrentClient();
+                this.ui.updateContext(client);
+                this.ui.renderRiskTable(client.risks);
+                this.ui.renderDashboard(client);
+                if (navigate) {
+                    app.router.navigate('dashboard');
+                }
+            }
+
+            refreshClientList() {
+                this.ui.renderClientList(this.service.getClients(), this.service.getArchivedClients());
+            }
+
+            handleAddRisk(e) {
+                e.preventDefault();
+                if(app.state.readOnly) return;
+
+                const form = e.target;
+                const client = this.service.getCurrentClient();
+                if (!client) return alert("No client selected");
+
+                const prob = parseInt(form.prob.value);
+                const impact = parseInt(form.impact.value);
+                const cost = parseFloat(form.cost.value.replace(/[^0-9.]/g, '')) || 0;
+                const duration = parseInt(form.duration.value.replace(/[^0-9]/g, '')) || 0;
+                const work = parseInt(form.work.value.replace(/[^0-9]/g, '')) || 0;
+
+                const emv = cost * (probMap[prob] || 0.1);
+
+                const riskData = {
+                    desc: form.desc.value,
+                    category: form.category.value,
+                    projectPhase: form.projectPhase.value, 
+                    prob, impact,
+                    score: prob * impact,
+                    cost, emv,
+                    duration, work,
+                    resProb: 0, resImpact: 0, resScore: 0,
+                    strategyType: form.strategyType.value,
+                    mitigationPlan: form.mitigationPlan.value,
+                    rootCause: form.rootCause.value,
+                    dateIdentified: form.dateIdentified.value || Utils.date(), 
+                    targetDate: form.targetDate.value,
+                    status: form.status.value,
+                    owner: form.owner.value
+                };
+
+                this.service.addRisk(client.id, riskData);
+                form.reset();
+                form.dateIdentified.value = Utils.date(); 
+                document.getElementById('displayInherentScore').innerText = '1';
+                document.getElementById('displayEMV').innerText = '$0.00';
+                
+                this.selectClient(client.id, false); 
+                alert("Risk Added");
+            }
+
+            openEditModal(riskId) {
+                const client = app.state.readOnly ? app.state.sharedClient : this.service.getCurrentClient();
+                const risk = client.risks.find(r => r.id === riskId);
+                this.currentRiskIndex = client.risks.findIndex(r => r.id === riskId);
+                this.ui.openRiskModal(risk);
+            }
+
+            navigateModal(direction) {
+                const client = app.state.readOnly ? app.state.sharedClient : this.service.getCurrentClient();
+                if (!client || client.risks.length === 0) return;
+
+                let newIndex = this.currentRiskIndex + direction;
+                if (newIndex < 0) newIndex = client.risks.length - 1;
+                if (newIndex >= client.risks.length) newIndex = 0;
+
+                this.currentRiskIndex = newIndex;
+                const risk = client.risks[newIndex];
+                this.ui.openRiskModal(risk); 
+            }
+
+            saveRiskEdit() {
+                if(app.state.readOnly) return;
+
+                const id = document.getElementById('editRiskId').value;
+                const client = this.service.getCurrentClient();
+                
+                const prob = parseInt(document.getElementById('editProb').value);
+                const impact = parseInt(document.getElementById('editImpact').value);
+                const cost = parseFloat(document.getElementById('editCost').value) || 0;
+                const score = prob * impact;
+                const emv = cost * (probMap[prob] || 0.1);
+
+                const updates = {
+                    desc: document.getElementById('editDesc').value,
+                    status: document.getElementById('editStatus').value,
+                    projectPhase: document.getElementById('editProjectPhase').value, 
+                    mitigationPlan: document.getElementById('editMitigation').value,
+                    rootCause: document.getElementById('editRootCause').value,
+                    targetDate: document.getElementById('editTargetDate').value,
+                    duration: parseInt(document.getElementById('editDuration').value) || 0,
+                    work: parseInt(document.getElementById('editWork').value) || 0,
+                    prob, impact, cost, score, emv 
+                };
+
+                this.service.updateRisk(client.id, id, updates);
+                
+                const newComment = document.getElementById('newComment').value;
+                if(newComment.trim()) {
+                    this.service.addComment(client.id, id, newComment, "User");
+                }
+
+                this.ui.closeRiskModal();
+                this.selectClient(client.id, false); 
+            }
+
+            archiveClient(id) {
+                if(app.state.readOnly) return;
+                if(confirm("Archive this client? They will be hidden from main views.")) {
+                    this.service.archiveClient(id);
+                    this.refreshClientList();
+                    if(this.service.getCurrentClient()?.id === id) {
+                        this.ui.updateContext(null);
+                        app.router.navigate('clientManager');
+                    }
+                }
+            }
+
+            restoreClient(id) {
+                if(app.state.readOnly) return;
+                this.service.archiveClient(id, true);
+                this.refreshClientList();
+            }
+            
+            clearAllRisks() {
+                if(app.state.readOnly) return;
+                const client = this.service.getCurrentClient();
+                if (!client) return;
+                
+                if (confirm("Are you sure you want to delete ALL risk entries for this client? This action cannot be undone.")) {
+                    this.service.clearRisks(client.id);
+                    this.selectClient(client.id, false);
+                }
+            }
+
+            deleteClient(id) {
+                 if(app.state.readOnly) return;
+                 if(confirm("Are you sure you want to PERMANENTLY delete this client and all their risks? This cannot be undone.")) {
+                     this.service.deleteClient(id);
+                     this.refreshClientList();
+                     if(this.service.getCurrentClient()?.id === id || !this.service.getCurrentClient()) {
+                         this.ui.updateContext(null);
+                         app.router.navigate('clientManager');
+                     }
+                 }
+            }
+
+            deleteRisk(riskId) {
+                if(app.state.readOnly) return;
+                const client = this.service.getCurrentClient();
+                if(confirm("Are you sure you want to delete this risk?")) {
+                     this.service.deleteRisk(client.id, riskId);
+                     this.selectClient(client.id, false); 
+                }
+            }
+            
+            exportData() {
+                if(app.state.readOnly) return;
+                this.service.export();
+            }
+            
+            importData(input) {
+                if(app.state.readOnly) return;
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const success = this.service.import(e.target.result);
+                    if(success) {
+                        alert("Database restored successfully!");
+                        location.reload();
+                    } else {
+                        alert("Error parsing backup file.");
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // --- 3. UI RENDERER ---
+        class UIRenderer {
+            constructor() {
+                this.statusChartInstance = null;
+            }
+
+            enableReadOnlyMode() {
+                document.getElementById('readOnlyBanner').classList.remove('hidden');
+                document.getElementById('appSidebar').classList.add('hidden'); 
+                document.getElementById('adminNavSections').classList.add('hidden'); 
+                document.getElementById('addRiskForm').classList.add('hidden'); 
+                document.getElementById('changeClientBtn').classList.add('hidden'); 
+                document.getElementById('clearAllBtn').classList.add('hidden'); 
+                
+                // Keep minimal sidebar
+                document.getElementById('appSidebar').classList.remove('hidden');
+            }
+
+            updateContext(client) {
+                const display = document.getElementById('clientContextDisplay');
+                const nameSpan = document.getElementById('activeClientName');
+                const emptyState = document.getElementById('dashboard-empty-state');
+                const dashboardContent = document.getElementById('dashboard-content');
+
+                if (client) {
+                    display.classList.remove('hidden');
+                    // Sanitized output via textContent is safe
+                    nameSpan.innerText = client.name; 
+                    emptyState.classList.add('hidden');
+                    dashboardContent.classList.remove('hidden');
+                } else {
+                    display.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    dashboardContent.classList.add('hidden');
+                }
+            }
+
+            renderClientList(active, archived) {
+                const list = document.getElementById('clientList');
+                list.innerHTML = active.map(c => `
+                    <div class="bg-white p-6 rounded shadow hover:shadow-lg transition border-l-4 border-blue-600 cursor-pointer group relative" onclick="app.controller.selectClient('${c.id}')">
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-bold text-lg text-gray-800">${c.name}</h4>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${c.risks.length} Risks</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">${c.industry || 'General Industry'}</p>
+                        <div class="mt-4 flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="event.stopPropagation(); app.controller.archiveClient('${c.id}')" class="text-xs text-yellow-600 hover:underline flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg> Archive
+                            </button>
+                            <button onclick="event.stopPropagation(); app.controller.deleteClient('${c.id}')" class="text-xs text-red-500 hover:underline flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                const arcList = document.getElementById('archiveList');
+                arcList.innerHTML = archived.length ? archived.map(c => `
+                    <div class="flex justify-between items-center bg-gray-200 p-4 rounded group">
+                        <div>
+                            <span class="font-bold text-gray-600">${c.name}</span>
+                            <span class="text-xs text-gray-500 ml-2">${c.risks.length} records</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="app.controller.restoreClient('${c.id}')" class="text-xs bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Restore</button>
+                            <button onclick="app.controller.deleteClient('${c.id}')" class="text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-400 italic">No archived clients.</p>';
+            }
+
+            renderRiskTable(risks) {
+                const tbody = document.getElementById('riskTableBody');
+                if(!risks || risks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-400">No risks found for this client.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = risks.map((r, index) => { 
+                    let badgeClass = 'badge-low';
+                    if (r.score >= 15) badgeClass = 'badge-critical';
+                    else if (r.score >= 10) badgeClass = 'badge-high';
+                    else if (r.score >= 5) badgeClass = 'badge-med';
+
+                    // Actions only if NOT read only
+                    let actionHtml = '';
+                    if (!app.state.readOnly) {
+                        actionHtml = `
+                        <button onclick="app.controller.openEditModal('${r.id}')" class="text-blue-600 hover:text-blue-800" title="Edit">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="app.controller.deleteRisk('${r.id}')" class="text-red-500 hover:text-red-700" title="Delete">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>`;
+                    } else {
+                        // Read only: just view icon
+                        actionHtml = `
+                        <button onclick="app.controller.openEditModal('${r.id}')" class="text-gray-500 hover:text-gray-800" title="View Details">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>`;
+                    }
+
+                    return `
+                    <tr class="hover:bg-gray-50 border-b group break-inside-avoid">
+                        <td class="py-3 px-6 font-mono text-xs font-bold text-gray-700">R-${index + 1}</td>
+                        <td class="py-3 px-6 text-gray-700 font-medium text-xs">
+                            ${(app.state.readOnly ? app.state.sharedClient.name : app.service.getCurrentClient().name)}
+                        </td>
+                        <td class="py-3 px-6">
+                            <div class="font-bold text-gray-800 text-sm">${r.desc}</div>
+                            <div class="text-xs text-gray-500">${r.category} | Identified: ${r.dateIdentified || 'N/A'}</div>
+                            <div class="text-xs text-blue-600 mt-1">Phase: ${r.projectPhase || 'N/A'}</div>
+                            <div class="text-xs text-gray-400 mt-1 italic">Est: ${r.duration || 0} days / ${r.work || 0} hrs</div>
+                            <div class="mt-2 text-xs text-gray-600">
+                                <span class="font-semibold text-red-500">Root Cause:</span> ${r.rootCause || 'N/A'}<br>
+                                <span class="font-semibold text-green-600">Mitigation:</span> ${r.mitigationPlan || 'N/A'}
+                            </div>
+                        </td>
+                        <!-- Added Due Date Column -->
+                        <td class="py-3 px-6 text-center text-xs whitespace-nowrap">
+                            ${r.targetDate || '-'}
+                        </td>
+                        <td class="py-3 px-6 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${badgeClass}" title="Score = Probability x Impact">${r.score}</span>
+                        </td>
+                        <td class="py-3 px-6 text-center">
+                             <span class="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-800">${r.resScore || 0}</span>
+                        </td>
+                        <td class="py-3 px-6 text-center text-xs">${r.strategyType || '-'}</td>
+                        <td class="py-3 px-6 text-right font-mono text-xs">${Utils.currency(r.cost)}</td>
+                        <td class="py-3 px-6 text-right font-mono text-xs text-blue-600 font-bold">${Utils.currency(r.emv)}</td>
+                        <td class="py-3 px-6 text-left text-xs font-medium text-gray-700">${r.owner || 'Unassigned'}</td>
+                        <td class="py-3 px-6 text-center">
+                            <span class="text-xs border px-2 py-1 rounded ${r.status === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-green-50 text-green-600 border-green-200'}">${r.status}</span>
+                        </td>
+                        <td class="py-3 px-6 text-center no-print">
+                            <div class="flex items-center justify-center gap-2">
+                                ${actionHtml}
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+            renderDashboard(client) {
+                if(!client) return;
+                const risks = client.risks;
+                
+                document.getElementById('dashTotal').innerText = risks.length;
+                document.getElementById('dashCritical').innerText = risks.filter(r => r.score >= 15).length;
+                const exposure = risks.reduce((sum, r) => sum + (r.emv || 0), 0);
+                document.getElementById('dashExposure').innerText = Utils.currency(exposure);
+                
+                const avgRes = risks.length ? (risks.reduce((sum, r) => sum + (r.resScore || 0), 0) / risks.length).toFixed(1) : 0;
+                document.getElementById('dashAvgScore').innerText = avgRes;
+
+                const grid = document.getElementById('heatmapGrid');
+                grid.innerHTML = '';
+                const cells = [];
+                for(let p=5; p>=1; p--) {
+                    for(let i=1; i<=5; i++) {
+                        const count = risks.filter(r => r.prob === p && r.impact === i).length;
+                        let color = 'bg-green-500';
+                        if (p*i >= 15) color = 'bg-red-500';
+                        else if (p*i >= 10) color = 'bg-orange-500';
+                        else if (p*i >= 5) color = 'bg-yellow-400';
+                        
+                        cells.push(`<div class="${color} text-white font-bold flex items-center justify-center rounded bg-opacity-75 text-sm" title="Prob ${p}, Imp ${i}">${count > 0 ? count : ''}</div>`);
+                    }
+                }
+                grid.innerHTML = cells.join('');
+
+                this.renderStatusChart(risks);
+            }
+
+            renderStatusChart(risks) {
+                const ctx = document.getElementById('statusChart').getContext('2d');
+                if (this.statusChartInstance) {
+                    this.statusChartInstance.destroy();
+                }
+                const statusCounts = { 'Open': 0, 'Mitigated': 0, 'Closed': 0, 'Occurred': 0, 'Monitoring': 0 };
+                risks.forEach(r => {
+                    if (statusCounts[r.status] !== undefined) statusCounts[r.status]++;
+                    else statusCounts[r.status] = 1;
+                });
+                const labels = Object.keys(statusCounts);
+                const data = Object.values(statusCounts);
+                const colors = ['#3B82F6', '#10B981', '#6B7280', '#EF4444', '#F59E0B'];
+                this.statusChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: labels, datasets: [{ label: 'Risk Count', data: data, backgroundColor: colors, borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            }
+
+            openClientModal() {
+                document.getElementById('clientModal').classList.remove('hidden');
+            }
+
+            openRiskModal(risk) {
+                const modal = document.getElementById('riskDetailModal');
+                const panel = document.getElementById('riskDetailPanel');
+                const content = document.getElementById('riskDetailContent');
+                document.getElementById('riskDetailIdDisplay').innerText = `ID: ${risk.id}`;
+                
+                // Hide Save button in footer if read only
+                const footer = document.getElementById('riskDetailFooter');
+                if(app.state.readOnly) {
+                    footer.innerHTML = `<span class="text-xs text-gray-400">Read Only Mode</span>`;
+                } else {
+                    footer.innerHTML = `<span class="text-xs text-gray-400" id="riskDetailIdDisplay">ID: ${risk.id}</span>
+                    <button onclick="app.controller.saveRiskEdit()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold shadow">Save Changes</button>`;
+                }
+
+                const readonlyAttr = app.state.readOnly ? 'disabled' : '';
+
+                content.innerHTML = `
+                    <input type="hidden" id="editRiskId" value="${risk.id}">
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Risk Description</label>
+                        <input type="text" id="editDesc" value="${risk.desc}" ${readonlyAttr} class="w-full border-b-2 border-blue-500 py-2 outline-none font-semibold text-lg">
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-4 bg-gray-50 p-2 rounded">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Prob (1-5)</label>
+                            <select id="editProb" ${readonlyAttr} class="w-full border p-2 rounded">
+                                ${[1,2,3,4,5].map(n => `<option value="${n}" ${risk.prob == n ? 'selected' : ''}>${n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Impact (1-5)</label>
+                            <select id="editImpact" ${readonlyAttr} class="w-full border p-2 rounded">
+                                ${[1,2,3,4,5].map(n => `<option value="${n}" ${risk.impact == n ? 'selected' : ''}>${n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Cost ($)</label>
+                            <input type="number" id="editCost" ${readonlyAttr} value="${risk.cost}" class="w-full border p-2 rounded">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Status</label>
+                            <select id="editStatus" ${readonlyAttr} class="w-full border p-2 rounded">
+                                <option ${risk.status === 'Open' ? 'selected' : ''}>Open</option>
+                                <option ${risk.status === 'Mitigated' ? 'selected' : ''}>Mitigated</option>
+                                <option ${risk.status === 'Closed' ? 'selected' : ''}>Closed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Target Date</label>
+                            <input type="date" id="editTargetDate" ${readonlyAttr} value="${risk.targetDate || ''}" class="w-full border p-2 rounded">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Duration (Days)</label>
+                            <input type="number" id="editDuration" ${readonlyAttr} value="${risk.duration || 0}" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Work (Hrs)</label>
+                            <input type="number" id="editWork" ${readonlyAttr} value="${risk.work || 0}" class="w-full border p-2 rounded">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Project Phase</label>
+                        <select id="editProjectPhase" ${readonlyAttr} class="w-full border p-2 rounded">
+                            <option ${risk.projectPhase === 'Discovery' ? 'selected' : ''}>Discovery</option>
+                            <option ${risk.projectPhase === 'Planning' ? 'selected' : ''}>Planning</option>
+                            <option ${risk.projectPhase === 'Design' ? 'selected' : ''}>Design</option>
+                            <option ${risk.projectPhase === 'Development' ? 'selected' : ''}>Development</option>
+                            <option ${risk.projectPhase === 'Testing (SIT/UAT)' ? 'selected' : ''}>Testing (SIT/UAT)</option>
+                            <option ${risk.projectPhase === 'Deployment' ? 'selected' : ''}>Deployment</option>
+                            <option ${risk.projectPhase === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Root Cause</label>
+                        <textarea id="editRootCause" ${readonlyAttr} class="w-full border rounded p-2 text-sm bg-yellow-50" rows="2">${risk.rootCause || ''}</textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Mitigation Plan</label>
+                        <textarea id="editMitigation" ${readonlyAttr} class="w-full border rounded p-2 text-sm bg-green-50" rows="3">${risk.mitigationPlan || ''}</textarea>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="border-t pt-4">
+                        <h4 class="font-bold text-gray-700 mb-2">Audit Log & Comments</h4>
+                        <div class="bg-gray-50 rounded p-3 h-40 overflow-y-auto mb-2 space-y-2">
+                            ${risk.comments.length ? risk.comments.map(c => `
+                                <div class="text-sm border-b pb-1">
+                                    <div class="flex justify-between text-xs text-gray-400">
+                                        <span>${c.author}</span>
+                                        <span>${c.date}</span>
+                                    </div>
+                                    <div class="text-gray-700">${c.text}</div>
+                                </div>
+                            `).join('') : '<div class="text-gray-400 italic text-center text-xs mt-10">No comments yet.</div>'}
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="newComment" placeholder="Add a comment..." class="flex-1 border rounded px-2 py-1 text-sm">
+                        </div>
+                    </div>
+                `;
+
+                modal.classList.remove('hidden');
+                setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+            }
+
+            closeRiskModal() {
+                const panel = document.getElementById('riskDetailPanel');
+                panel.classList.add('translate-x-full');
+                setTimeout(() => document.getElementById('riskDetailModal').classList.add('hidden'), 300);
+            }
+
+            updateFormCalc() {
+                const prob = parseInt(document.getElementById('formProb').value);
+                const impact = parseInt(document.getElementById('formImpact').value);
+                const costStr = document.getElementById('costImpact').value;
+                const cost = parseFloat(costStr.replace(/[^0-9.]/g, '')) || 0;
+                
+                const score = prob * impact;
+                // EMV = Cost * Prob%
+                const factor = probMap[prob] || 0;
+                const emv = cost * factor;
+                
+                document.getElementById('displayInherentScore').innerText = score;
+                document.getElementById('displayEMV').innerText = Utils.currency(emv);
+            }
+        }
+
+        // --- 4. ROUTER ---
+        const Router = {
+            navigate: (viewName) => {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`view-${viewName}`).classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = viewName.replace(/([A-Z])/g, ' $1').trim(); 
+            }
+        };
+
+        // --- 5. TEST RUNNER (System Health) ---
+        class TestRunner {
+            constructor(service) {
+                this.service = service;
+                this.logs = [];
+            }
+
+            log(msg, success) {
+                const icon = success ? '✅' : '❌';
+                this.logs.push(`[${new Date().toLocaleTimeString()}] ${icon} ${msg}`);
+                this.render();
+            }
+
+            render() {
+                document.getElementById('testResults').innerHTML = this.logs.join('<br>');
+            }
+
+            async runAll() {
+                this.logs = [];
+                this.log("Starting System Diagnostics...", true);
+                
+                try {
+                    // Test 1: Service
+                    if(this.service) this.log("Data Service Initialized", true);
+                    else throw "Data Service Missing";
+
+                    // Test 2: Client
+                    const testClient = this.service.createClient("TEST_CLIENT", "Testing");
+                    if(testClient && testClient.id) this.log("Client Creation: Success", true);
+                    else throw "Client Creation Failed";
+
+                    // Test 3: Add Risk & EMV Check
+                    const risk = this.service.addRisk(testClient.id, { 
+                        desc: "Test Risk", prob: 5, impact: 5, score: 25, cost: 100, emv: 90 
+                    });
+                    if(risk.score === 25 && risk.emv === 90) this.log("Risk Creation & EMV: Success", true);
+                    else throw "Risk EMV Calculation Failed";
+
+                    // Test 4: Archive
+                    this.service.archiveClient(testClient.id);
+                    const archived = this.service.getArchivedClients();
+                    if(archived.find(c => c.id === testClient.id)) this.log("Archiving Logic: Success", true);
+                    else throw "Archiving Failed";
+
+                    // Test 5: Cleanup
+                    this.service.deleteClient(testClient.id);
+                    this.log("Cleanup: Success", true);
+
+                    this.log("ALL SYSTEMS OPERATIONAL", true);
+
+                } catch (e) {
+                    this.log("TEST FAILED: " + e, false);
+                }
+            }
+        }
+
+        // --- INITIALIZATION ---
+        const app = {
+            service: new DataService(),
+            ui: new UIRenderer(),
+            router: Router,
+            state: { readOnly: false, sharedClient: null }
+        };
+        app.controller = new Controller(app.service, app.ui);
+        app.tests = new TestRunner(app.service);
+
+        // Boot
+        window.onload = () => {
+            // Pre-set date inputs to today
+            const dateInput = document.querySelector('input[name="dateIdentified"]');
+            if(dateInput) dateInput.value = Utils.date();
+            app.controller.init();
+        };
+
+    </script>
+</body>
+</html>
