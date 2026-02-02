@@ -119,7 +119,7 @@
         </nav>
         
         <div class="p-4 bg-blue-900 bg-opacity-50 text-xs text-center text-blue-200">
-            v3.0.0 Cloud Ready
+            v2.13.0 Cloud Ready
         </div>
     </div>
 
@@ -460,9 +460,16 @@
                         To enable unlimited data sharing, generate a Personal Access Token (PAT) on GitHub with <code>gist</code> scope and paste it here.
                         This allows the app to save your Risk Register to a secure, private Gist.
                     </p>
-                    <div class="flex gap-2">
+                    
+                    <div class="flex gap-2 mb-2">
                         <input type="password" id="githubToken" class="w-full border p-2 rounded" placeholder="Paste GitHub Token (ghp_...)" onchange="app.service.saveToken(this.value)">
                         <button onclick="alert('Token Saved Locally')" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Save Token</button>
+                    </div>
+                    
+                    <!-- NEW FIELD FOR BASE URL -->
+                    <div class="flex gap-2 mt-2">
+                        <input type="text" id="deployedUrl" class="w-full border p-2 rounded" placeholder="Deployed App URL (e.g., https://user.github.io/repo/)" onchange="app.service.saveBaseUrl(this.value)">
+                        <button onclick="alert('URL Saved')" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Save URL</button>
                     </div>
                 </div>
 
@@ -525,17 +532,7 @@
     <div id="riskDetailModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex justify-end no-print">
         <div class="bg-white w-full max-w-2xl h-full shadow-2xl p-0 flex flex-col transform transition-transform duration-300 translate-x-full" id="riskDetailPanel">
             <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <h3 class="text-lg font-bold text-gray-800">Risk Details & Editing</h3>
-                    <div class="flex gap-2">
-                         <button onclick="app.controller.navigateModal(-1)" class="p-1 rounded hover:bg-gray-200 text-gray-600" title="Previous Risk">
-                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                         </button>
-                         <button onclick="app.controller.navigateModal(1)" class="p-1 rounded hover:bg-gray-200 text-gray-600" title="Next Risk">
-                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                         </button>
-                    </div>
-                </div>
+                <h3 class="text-lg font-bold text-gray-800">Risk Details & Editing</h3>
                 <button onclick="app.ui.closeRiskModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
             
@@ -760,6 +757,7 @@
             constructor() {
                 this.STORAGE_KEY = 'erm_db_v2_4'; 
                 this.GH_TOKEN_KEY = 'erm_gh_token';
+                this.BASE_URL_KEY = 'erm_base_url'; // NEW KEY
                 this.db = this.load();
             }
 
@@ -778,6 +776,15 @@
             
             getToken() {
                 return localStorage.getItem(this.GH_TOKEN_KEY);
+            }
+
+            // NEW: Base URL Logic
+            saveBaseUrl(url) {
+                localStorage.setItem(this.BASE_URL_KEY, url);
+            }
+
+            getBaseUrl() {
+                return localStorage.getItem(this.BASE_URL_KEY);
             }
 
             // GIST API METHODS
@@ -830,8 +837,8 @@
             import(jsonData) {
                 try {
                     const parsed = JSON.parse(jsonData);
-                    if(parsed.clients || parsed.name) { // Basic validation
-                        this.db = parsed.clients ? parsed : { clients: [parsed], currentClientId: parsed.id }; // Handle single client or full db
+                    if(parsed.clients) {
+                        this.db = parsed;
                         this.save();
                         return true;
                     }
@@ -929,6 +936,20 @@
                     this.save();
                 }
             }
+
+            addComment(clientId, riskId, text, author) {
+                const client = this.db.clients.find(c => c.id === clientId);
+                const risk = client.risks.find(r => r.id === riskId);
+                if (risk) {
+                    risk.comments.push({
+                        id: Utils.id(),
+                        text: Utils.sanitize(text),
+                        author: Utils.sanitize(author),
+                        date: new Date().toLocaleString()
+                    });
+                    this.save();
+                }
+            }
         }
 
         // --- 2. CONTROLLER ---
@@ -987,6 +1008,10 @@
                 if(this.service.getToken()) {
                     document.getElementById('githubToken').value = this.service.getToken();
                 }
+                // Pre-fill base URL if exists
+                if(this.service.getBaseUrl()) {
+                    document.getElementById('deployedUrl').value = this.service.getBaseUrl();
+                }
             }
 
             async generateShareLink() {
@@ -1004,6 +1029,22 @@
                 loading.classList.remove('hidden');
                 result.classList.add('hidden');
 
+                let baseUrl = this.service.getBaseUrl();
+                
+                // If no base URL saved and we are not on file protocol, assume current location
+                if (!baseUrl && window.location.protocol !== 'file:') {
+                    baseUrl = window.location.href.split('?')[0]; // Remove existing params
+                }
+                
+                // Fallback / Prompt if running locally and no config
+                if (!baseUrl) {
+                    baseUrl = "https://[YOUR_GITHUB_USERNAME].github.io/[REPO_NAME]/";
+                    alert("You are running this locally. The generated link will use a placeholder URL until you configure the 'Deployed App URL' in System Health.");
+                }
+                
+                // Ensure proper separator
+                const separator = baseUrl.includes('?') ? '&' : '?';
+
                 let url = "";
                 const token = this.service.getToken();
 
@@ -1011,7 +1052,7 @@
                     // Method A: Gist (Unlimited)
                     try {
                         const gist = await this.service.publishToGist(client);
-                        url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?gist=${gist.id}&view=riskRegister`;
+                        url = `${baseUrl}${separator}gist=${gist.id}&view=riskRegister`;
                         successMsg.classList.remove('hidden');
                         warnMsg.classList.add('hidden');
                     } catch(e) {
@@ -1019,7 +1060,7 @@
                         // Fallback
                         const json = JSON.stringify(client);
                         const encoded = btoa(json);
-                        url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${encoded}&view=riskRegister`;
+                        url = `${baseUrl}${separator}data=${encoded}&view=riskRegister`;
                         successMsg.classList.add('hidden');
                         warnMsg.classList.remove('hidden');
                     }
@@ -1027,7 +1068,7 @@
                     // Method B: URL Param (Legacy)
                     const json = JSON.stringify(client);
                     const encoded = btoa(json);
-                    url = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${encoded}&view=riskRegister`;
+                    url = `${baseUrl}${separator}data=${encoded}&view=riskRegister`;
                     successMsg.classList.add('hidden');
                     warnMsg.classList.remove('hidden');
                 }
@@ -1096,6 +1137,7 @@
 
                 const prob = parseInt(form.prob.value);
                 const impact = parseInt(form.impact.value);
+                // Clean inputs
                 const cost = parseFloat(form.cost.value.replace(/[^0-9.]/g, '')) || 0;
                 const duration = parseInt(form.duration.value.replace(/[^0-9]/g, '')) || 0;
                 const work = parseInt(form.work.value.replace(/[^0-9]/g, '')) || 0;
@@ -1126,6 +1168,7 @@
                 document.getElementById('displayInherentScore').innerText = '1';
                 document.getElementById('displayEMV').innerText = '$0.00';
                 
+                // Do NOT navigate to dashboard, just refresh data
                 this.selectClient(client.id, false); 
                 alert("Risk Added");
             }
@@ -1133,21 +1176,25 @@
             openEditModal(riskId) {
                 const client = app.state.readOnly ? app.state.sharedClient : this.service.getCurrentClient();
                 const risk = client.risks.find(r => r.id === riskId);
+                // Set current index for navigation
                 this.currentRiskIndex = client.risks.findIndex(r => r.id === riskId);
                 this.ui.openRiskModal(risk);
             }
 
+            // Navigate Previous/Next in Modal
             navigateModal(direction) {
                 const client = app.state.readOnly ? app.state.sharedClient : this.service.getCurrentClient();
                 if (!client || client.risks.length === 0) return;
 
                 let newIndex = this.currentRiskIndex + direction;
+                
+                // Loop around or stop? Let's loop.
                 if (newIndex < 0) newIndex = client.risks.length - 1;
                 if (newIndex >= client.risks.length) newIndex = 0;
 
                 this.currentRiskIndex = newIndex;
                 const risk = client.risks[newIndex];
-                this.ui.openRiskModal(risk); 
+                this.ui.openRiskModal(risk); // Re-render modal with new risk
             }
 
             saveRiskEdit() {
@@ -1182,7 +1229,7 @@
                 }
 
                 this.ui.closeRiskModal();
-                this.selectClient(client.id, false); 
+                this.selectClient(client.id, false); // Don't navigate
             }
 
             archiveClient(id) {
@@ -1210,7 +1257,7 @@
                 
                 if (confirm("Are you sure you want to delete ALL risk entries for this client? This action cannot be undone.")) {
                     this.service.clearRisks(client.id);
-                    this.selectClient(client.id, false);
+                    this.selectClient(client.id, false); // Don't navigate
                 }
             }
 
@@ -1231,7 +1278,7 @@
                 const client = this.service.getCurrentClient();
                 if(confirm("Are you sure you want to delete this risk?")) {
                      this.service.deleteRisk(client.id, riskId);
-                     this.selectClient(client.id, false); 
+                     this.selectClient(client.id, false); // Don't navigate
                 }
             }
             
@@ -1267,11 +1314,11 @@
 
             enableReadOnlyMode() {
                 document.getElementById('readOnlyBanner').classList.remove('hidden');
-                document.getElementById('appSidebar').classList.add('hidden'); 
-                document.getElementById('adminNavSections').classList.add('hidden'); 
-                document.getElementById('addRiskForm').classList.add('hidden'); 
-                document.getElementById('changeClientBtn').classList.add('hidden'); 
-                document.getElementById('clearAllBtn').classList.add('hidden'); 
+                document.getElementById('appSidebar').classList.add('hidden'); // Hide sidebar for cleaner view or disable links
+                document.getElementById('adminNavSections').classList.add('hidden'); // Hide admin navs
+                document.getElementById('addRiskForm').classList.add('hidden'); // Hide Add form
+                document.getElementById('changeClientBtn').classList.add('hidden'); // Hide Change Client btn
+                document.getElementById('clearAllBtn').classList.add('hidden'); // Hide Clear All
                 
                 // Keep minimal sidebar
                 document.getElementById('appSidebar').classList.remove('hidden');
@@ -1567,9 +1614,9 @@
                                 </div>
                             `).join('') : '<div class="text-gray-400 italic text-center text-xs mt-10">No comments yet.</div>'}
                         </div>
-                        <div class="flex gap-2">
+                        ${!app.state.readOnly ? `<div class="flex gap-2">
                             <input type="text" id="newComment" placeholder="Add a comment..." class="flex-1 border rounded px-2 py-1 text-sm">
-                        </div>
+                        </div>` : ''}
                     </div>
                 `;
 
@@ -1590,7 +1637,6 @@
                 const cost = parseFloat(costStr.replace(/[^0-9.]/g, '')) || 0;
                 
                 const score = prob * impact;
-                // EMV = Cost * Prob%
                 const factor = probMap[prob] || 0;
                 const emv = cost * factor;
                 
